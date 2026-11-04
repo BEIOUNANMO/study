@@ -118,6 +118,8 @@ th{color:var(--mut);font-weight:600;font-size:11.5px}
 .g3{background:#eef1f6;color:#6b7787}
 .gt{font-size:13.5px;line-height:1.5}
 .gt b{font-weight:600}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:78px;display:none;align-items:center;gap:10px;background:rgba(28,36,48,.94);color:#fff;padding:9px 12px 9px 15px;border-radius:24px;font-size:13px;z-index:50;max-width:92%;box-shadow:0 8px 24px -10px rgba(0,0,0,.5)}
+.toast .btn{background:transparent;border-color:rgba(255,255,255,.4);color:#fff}
 .brushrow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .brushrow label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#6b7787}
 .bnum{width:100%;border:1px solid #e3e8f0;border-radius:11px;padding:10px;font-size:17px;font-weight:700;text-align:center;color:#1f3a5f;background:#fbfcfe}
@@ -226,6 +228,7 @@ select.inp{appearance:auto}
   <div class="foot">34 周 · 238 天　|　死命令不打勾，不算今天　|　<span>v20261105</span></div>
 </div>
 
+<div id="toast" class="toast"><span id="toastTxt"></span><button class="btn mini" id="toastUndo">撤销</button></div>
 <div class="tabs">
   <div class="tab on" data-s="today"><i>◎</i>今日</div>
   <div class="tab" data-s="plan"><i>▤</i>计划</div>
@@ -296,11 +299,30 @@ function duePoems(){
   const q = quota();
   return D.poems.filter((p,i)=> i < q && poemDue(p));
 }
+let LAST = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  if(!t) return;
+  document.getElementById('toastTxt').textContent = msg;
+  t.style.display = 'flex';
+  clearTimeout(showToast._id);
+  showToast._id = setTimeout(()=>{ t.style.display='none'; }, 6000);
+}
 function advance(p){
   const k = p.seg + p.no, s = poemState(p);
+  const prev = s.r ? JSON.parse(JSON.stringify(s)) : null;
   const r = Math.min((s.r||0)+1, 5);
   S.poems[k] = {r:r, n: addDays(today(), ROUND_ADD[r-1]||30), last: today()};
+  LAST = {k:k, prev:prev};
   save();
+  showToast('已背完《' + p.t + '》');
+}
+function undoLast(){
+  if(!LAST) return;
+  if(LAST.prev) S.poems[LAST.k] = LAST.prev; else delete S.poems[LAST.k];
+  save(); LAST = null;
+  document.getElementById('toast').style.display = 'none';
+  renderPoems(); renderDue($('#date').value || today()); header();
 }
 
 function renderToday(){
@@ -508,12 +530,23 @@ function renderPoems(){
     const k = p.seg+p.no, s = poemState(p);
     return '<div class="pl"><span class="n">'+p.no+'</span><span class="t2">《'+p.t+'》<span class="f2">　'+p.f+'</span></span>'
       + '<span class="dots"><i class="'+(s.r>0?'on':'')+'"></i><i class="'+(s.r>1?'on':'')+'"></i><i class="'+(s.r>2?'on':'')+'"></i></span>'
-      + '<button class="btn mini" data-k="'+k+'">'+((s.r||0)>=3?'复习':'背完')+'</button></div>';
+      + '<button class="btn mini" data-k="'+k+'">'+((s.r||0)>=3?'复习':'背完')+'</button>'
+      + (s.r ? '<button class="btn mini" data-undo="'+k+'" title="撤回一轮">↺</button>' : '') + '</div>';
   }).join('') : '<div class="empty">今天没有到期的。</div>';
   $('#poemBox').querySelectorAll('button[data-k]').forEach(b=>{
     b.onclick = () => {
       const p = D.poems.find(x => x.seg+x.no === b.dataset.k);
       advance(p); renderPoems(); header();
+    };
+  });
+  $('#poemBox').querySelectorAll('button[data-undo]').forEach(b=>{
+    b.onclick = () => {
+      const k = b.dataset.undo, v = S.poems[k];
+      if(!v) return;
+      const r = Math.max(0, (v.r||0) - 1);
+      if(r === 0) delete S.poems[k];
+      else S.poems[k] = {r:r, n: today(), last: v.last};
+      save(); renderPoems(); header();
     };
   });
 }
@@ -611,6 +644,8 @@ document.querySelectorAll('#matf .f').forEach(f=>{ f.onclick = () => { mv = f.da
 $('#date').onchange = renderToday;
 $('#todayBtn').onclick = () => { $('#date').value = today(); renderToday(); };
 $('#note').oninput = () => { const d=$('#date').value||today(); S.days[d]=S.days[d]||{}; S.days[d].note=$('#note').value; save(); };
+const tu = document.getElementById('toastUndo');
+if(tu) tu.onclick = undoLast;
 $('#madd').onclick = () => {
   const q = $('#mq').value.trim();
   if(!q){ $('#mtip').textContent = '先写题目'; return; }
