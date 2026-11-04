@@ -326,7 +326,7 @@ function renderToday(){
       + '<button class="btn mini'+(st.cmd[i]?' on':'')+'" data-cmd="'+i+'">'+(st.cmd[i]?'已打':'打卡')+'</button></div>').join('');
 
   box.innerHTML =
-    '<div class="card cmd"><h3><span class="dot"></span>今日死命令<span class="tag">'+doneN+' / 3</span></h3>'
+    '<div class="card cmd"><h3><span class="dot"></span>今日死命令<span class="tag">第 '+(D.days.findIndex(x=>x.d===ds)+1)+' 天 / '+D.days.length+' · '+doneN+'/3</span></h3>'
       + cmdHtml
       + (passed
           ? (st.s==='done'
