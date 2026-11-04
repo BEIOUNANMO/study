@@ -211,6 +211,10 @@ select.inp{appearance:auto}
       <div id="miles"></div>
     </div>
     <div class="card">
+      <h3><span class="dot" style="background:#6b7787"></span>存储自检<span class="tag">出问题先看这里</span></h3>
+      <div class="small" id="diag"></div>
+    </div>
+    <div class="card">
       <h3><span class="dot"></span>数据</h3>
       <div class="btns">
         <button class="btn" id="repBtn">生成本周复盘</button>
@@ -248,7 +252,8 @@ if(!Object.keys(S.days).length){
   try { const old = JSON.parse(localStorage.getItem('yq2027_v1') || '{}');
     if(old && old.days){ S = old; S.days = S.days||{}; S.poems = S.poems||{}; S.mist = S.mist||[]; } } catch(e){}
 }
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} };
+let SAVE_ERR = '';
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); SAVE_ERR=''; } catch(e){ SAVE_ERR = e.name + ': ' + e.message; } };
 const $ = s => document.querySelector(s);
 const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const parse = s => new Date(s + 'T00:00:00');
@@ -605,6 +610,19 @@ function renderGrades(){
 }
 
 // ---- 统计 ----
+function renderDiag(){
+  let ok = true, err = '';
+  try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); } catch(e){ ok = false; err = e.name + ': ' + e.message; }
+  let raw = '';
+  try { raw = localStorage.getItem(KEY) || ''; } catch(e){ raw = ''; }
+  const el = document.getElementById('diag');
+  if(!el) return;
+  el.innerHTML = '本机存储：' + (ok ? '<b style="color:#1f7a4d">可用</b>' : '<b style="color:#b02a2a">不可用</b> ' + err)
+    + '<br>存储键：' + KEY
+    + '<br>已存大小：' + raw.length + ' 字节'
+    + '<br>打卡记录：' + Object.keys(S.days).length + ' 天　背诵：' + Object.keys(S.poems).length + ' 篇　错题：' + S.mist.length + ' 道'
+    + (SAVE_ERR ? '<br><b style="color:#b02a2a">上次保存失败：' + SAVE_ERR + '</b>' : '');
+}
 function renderStat(){
   const keys = Object.keys(S.days);
   const done = keys.filter(k=>S.days[k].s==='done').length;
@@ -636,7 +654,7 @@ document.querySelectorAll('.tab').forEach(t=>{
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
     document.querySelectorAll('.sec').forEach(x=>x.classList.remove('on'));
     t.classList.add('on'); $('#s-'+t.dataset.s).classList.add('on');
-    if(t.dataset.s==='stat') renderStat();
+    if(t.dataset.s==='stat'){ renderStat(); renderDiag(); }
     window.scrollTo({top:0,behavior:'smooth'});
   };
 });
@@ -713,7 +731,7 @@ const q = new URLSearchParams(location.search);
 $('#date').value = q.get('d') || today();
 if(q.get('mv')) mv = q.get('mv');
 if(q.get('tab')){ const t=document.querySelector('.tab[data-s="'+q.get('tab')+'"]'); if(t) t.click(); }
-header(); renderToday(); renderPlan(); renderPoems(); renderMist(); renderMats(); renderStat();
+header(); renderToday(); renderPlan(); renderPoems(); renderMist(); renderMats(); renderStat(); renderDiag();
 </script>
 </body>
 </html>
