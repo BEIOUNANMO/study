@@ -222,6 +222,12 @@ select.inp{appearance:auto}
         <button class="btn" id="impBtn">导入进度</button>
         <button class="btn miss" id="resetBtn">清空</button>
       </div>
+      <div class="btns">
+        <button class="btn" id="copyExp">复制进度文本</button>
+        <button class="btn" id="impPaste">粘贴导入</button>
+      </div>
+      <textarea class="note" id="syncTxt" style="display:none;margin-top:8px;min-height:130px;font-size:11px" placeholder="① 复制进度文本：这里会出现一串文字，全选复制发给另一台设备。② 粘贴导入：把另一台设备发来的文字整段粘进来，再点一次“粘贴导入”。"></textarea>
+      <div class="small" id="syncTip" style="margin-top:6px"></div>
       <div id="repBox" style="display:none;margin-top:10px">
         <textarea class="note" id="repTxt" readonly style="min-height:200px;font-size:12.5px"></textarea>
         <div class="btns"><button class="btn" id="copyRep">复制这段，发给老师</button></div>
@@ -713,6 +719,32 @@ $('#copyRep').onclick = () => {
   if(navigator.clipboard){ navigator.clipboard.writeText(el.value).catch(()=>{}); }
   $('#copyRep').textContent = '已复制，去粘贴';
   setTimeout(()=>{ $('#copyRep').textContent = '复制这段，发给老师'; }, 1800);
+};
+$('#copyExp').onclick = () => {
+  const ta = document.getElementById('syncTxt');
+  ta.value = JSON.stringify(S);
+  ta.style.display = 'block';
+  ta.select(); ta.setSelectionRange(0, 999999);
+  try { document.execCommand('copy'); } catch(e){}
+  if(navigator.clipboard){ navigator.clipboard.writeText(ta.value).catch(()=>{}); }
+  document.getElementById('syncTip').textContent = '已复制 ' + ta.value.length + ' 个字符。去微信发给另一台设备。';
+};
+$('#impPaste').onclick = () => {
+  const ta = document.getElementById('syncTxt');
+  if(ta.style.display === 'none' || !ta.value.trim()){
+    ta.style.display = 'block'; ta.value = '';
+    document.getElementById('syncTip').textContent = '把文字粘进来，再点一次“粘贴导入”。';
+    ta.focus(); return;
+  }
+  try {
+    const o = JSON.parse(ta.value.trim());
+    S = o; S.days = S.days||{}; S.poems = S.poems||{}; S.mist = S.mist||[];
+    save();
+    document.getElementById('syncTip').textContent = '导入成功：打卡 ' + Object.keys(S.days).length + ' 天，背诵 ' + Object.keys(S.poems).length + ' 篇，错题 ' + S.mist.length + ' 道。';
+    header(); renderToday(); renderPoems(); renderMist(); renderStat();
+  } catch(e){
+    document.getElementById('syncTip').textContent = '格式不对：整段文字要完整复制，别漏开头结尾。';
+  }
 };
 $('#expBtn').onclick = () => {
   const blob = new Blob([JSON.stringify(S,null,1)],{type:'application/json'});
